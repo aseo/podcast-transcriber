@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Podcast Admin Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-podcast"></i> Podcast Admin Dashboard</h1>
+            <div class="header-actions">
+                <button id="refreshBtn" class="btn btn-primary">
+                    <i class="fas fa-sync-alt"></i> Refresh Episodes
+                </button>
+            </div>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-number" id="totalEpisodes">0</div>
+                <div class="stat-label">Total Episodes</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="pendingEpisodes">0</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="completedEpisodes">0</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="errorEpisodes">0</div>
+                <div class="stat-label">Errors</div>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="episodes-container">
+                <div class="episodes-header">
+                    <h2>Episodes</h2>
+                    <div class="filters">
+                        <select id="dateFilter" class="filter-select">
+                            <option value="30">Last 30 Days</option>
+                            <option value="60">Last 60 Days</option>
+                            <option value="90">Last 90 Days</option>
+                        </select>
+                        <select id="statusFilter" class="filter-select">
+                            <option value="all">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                            <option value="error">Error</option>
+                        </select>
+                        <select id="podcastFilter" class="filter-select">
+                            <option value="all">All Podcasts</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="episodesList" class="episodes-list">
+                    <div class="loading">Loading episodes...</div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="task-panel">
+                    <h3>Active Tasks</h3>
+                    <div id="activeTasks" class="tasks-list">
+                        <div class="no-tasks">No active tasks</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transcript Modal -->
+    <div id="transcriptModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Episode Transcript</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalTranscript" class="transcript-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html> 
