@@ -471,4 +471,40 @@ body {
         width: 100%;
         justify-content: flex-start;
     }
+}
+
+/* Error Display Styles */
+.episode-error {
+    margin-top: 12px;
+    padding: 12px;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    border-left: 4px solid #ef4444;
+}
+
+.error-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    color: #dc2626;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.error-header i {
+    font-size: 16px;
+}
+
+.error-message {
+    color: #991b1b;
+    font-size: 13px;
+    line-height: 1.4;
+    word-break: break-word;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: #fef2f2;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #fecaca;
 } 

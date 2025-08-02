@@ -75,9 +75,22 @@ def sanitize_filename(s):
     """Sanitize filename for folder creation"""
     return "".join(c if c.isalnum() or c in ("_", "-") else "_" for c in s)
 
-def download_audio(audio_url, folder):
-    """Download audio file from URL"""
-    local_path = os.path.join(folder, "audio.mp3")
+def download_audio(audio_url, folder, episode_title=None, episode_metadata=None):
+    """Download audio file from URL and save metadata JSON"""
+    # Sanitize episode title for filename
+    if episode_title:
+        safe_title = sanitize_filename(episode_title)
+        local_path = os.path.join(folder, f"{safe_title}.mp3")
+    else:
+        local_path = os.path.join(folder, "audio.mp3")
+    
+    # Save metadata JSON if provided
+    if episode_metadata and episode_title:
+        safe_title = sanitize_filename(episode_title)
+        metadata_path = os.path.join(folder, f"{safe_title}.json")
+        with open(metadata_path, 'w', encoding='utf-8') as f:
+            json.dump(episode_metadata, f, indent=2, ensure_ascii=False)
+    
     if os.path.exists(local_path):
         return local_path
     
@@ -98,8 +111,15 @@ def download_audio(audio_url, folder):
     return local_path
 
 def transcribe_with_gladia(audio_path, task_id):
-    """Transcribe audio using Gladia API"""
+    """Transcribe audio using Gladia API with proper timeout handling"""
     try:
+        # Calculate timeout based on file size (2 minutes per MB, minimum 5 minutes)
+        file_size = os.path.getsize(audio_path)
+        file_size_mb = file_size / (1024*1024)
+        upload_timeout = max(300, int(file_size_mb * 120))  # 2 minutes per MB, min 5 minutes
+        print(f"📁 File size: {file_size_mb:.1f} MB")
+        print(f"⏱️  Upload timeout: {upload_timeout} seconds")
+        
         # Upload file (using Gladia's recommended method)
         file_name, file_extension = os.path.splitext(audio_path)
         with open(audio_path, "rb") as f:
@@ -110,7 +130,8 @@ def transcribe_with_gladia(audio_path, task_id):
         res = requests.post(
             "https://api.gladia.io/v2/upload/",
             headers={"x-gladia-key": GLADIA_API_KEY},
-            files=files
+            files=files,
+            timeout=upload_timeout
         )
         res.raise_for_status()
         audio_url = res.json()["audio_url"]
@@ -125,7 +146,8 @@ def transcribe_with_gladia(audio_path, task_id):
                 "language": "en",
                 "diarization": True,
                 "subtitles": False
-            }
+            },
+            timeout=60  # 1 minute timeout for transcription start
         )
         res.raise_for_status()
         result_url = res.json().get("result_url")
@@ -135,7 +157,11 @@ def transcribe_with_gladia(audio_path, task_id):
         
         # Poll for result using result_url
         while True:
-            res = requests.get(result_url, headers={"x-gladia-key": GLADIA_API_KEY})
+            res = requests.get(
+                result_url, 
+                headers={"x-gladia-key": GLADIA_API_KEY},
+                timeout=30  # 30 second timeout for polling
+            )
             res.raise_for_status()
             data = res.json()
             status = data["status"]
@@ -217,10 +243,14 @@ def transcribe_with_gladia(audio_path, task_id):
     except Exception as e:
         raise RuntimeError(f"Transcription error: {str(e)}")
 
-def save_transcript(folder, transcript_text):
+def save_transcript(folder, transcript_text, episode_title=None):
     """Save transcript to file"""
     os.makedirs(folder, exist_ok=True)
-    file_path = os.path.join(folder, "transcript.txt")
+    if episode_title:
+        safe_title = sanitize_filename(episode_title)
+        file_path = os.path.join(folder, f"{safe_title}.txt")
+    else:
+        file_path = os.path.join(folder, "transcript.txt")
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(transcript_text)
     return file_path
@@ -244,12 +274,21 @@ def transcribe_episode(episode_data, task_id):
         os.makedirs(folder_path, exist_ok=True)
         
         background_tasks[task_id]['message'] = 'Downloading audio...'
-        audio_path = download_audio(audio_url, folder_path)
+        
+        # Create metadata for JSON file
+        episode_metadata = {
+            "podcast_name": podcast_name,
+            "episode_title": episode_title,
+            "pub_date": episode_data.get('pub_date', ''),
+            "episode_link": episode_data.get('episode_link', '')
+        }
+        
+        audio_path = download_audio(audio_url, folder_path, episode_title, episode_metadata)
         
         background_tasks[task_id]['message'] = 'Transcribing audio...'
         transcript = transcribe_with_gladia(audio_path, task_id)
         
-        transcript_path = save_transcript(folder_path, transcript)
+        transcript_path = save_transcript(folder_path, transcript, episode_title)
         
         # Update status
         status = load_status()
@@ -448,10 +487,25 @@ def start_transcription(episode_id: str):
                 current_episode_id = f"{feed_hash}_{episode_base}"
                 
                 if current_episode_id == episode_id:
+                    # Try to get episode link from various possible sources
+                    episode_link = ""
+                    if hasattr(entry, 'link') and entry.link:
+                        episode_link = entry.link
+                    elif hasattr(entry, 'links') and entry.links:
+                        # links is usually a list of link objects
+                        for link in entry.links:
+                            if hasattr(link, 'href') and link.href:
+                                # Skip audio links, look for episode page links
+                                if not link.href.endswith('.mp3') and 'audio' not in link.href:
+                                    episode_link = link.href
+                                    break
+                    
                     target_episode = {
                         "id": episode_id,
                         "podcast_name": podcast_name,
                         "title": entry.title if hasattr(entry, 'title') else "Unknown Title",
+                        "pub_date": entry.published if hasattr(entry, 'published') else "",
+                        "episode_link": episode_link,
                         "audio_url": audio_url
                     }
                     break
@@ -525,6 +579,8 @@ def get_transcript(episode_id: str):
 def get_all_status():
     """Get all transcription status"""
     return load_status()
+
+
 
 @app.get("/health")
 def health_check():

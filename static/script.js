@@ -85,6 +85,20 @@ function createEpisodeCard(episode) {
     
     const date = episode.pub_date ? new Date(episode.pub_date).toLocaleDateString() : 'Unknown date';
     
+    // Add error details if available
+    let errorDetails = '';
+    if (episode.status === 'error' && episode.error) {
+        errorDetails = `
+            <div class="episode-error">
+                <div class="error-header">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Error Details:</strong>
+                </div>
+                <div class="error-message">${episode.error}</div>
+            </div>
+        `;
+    }
+    
     return `
         <div class="episode-card">
             <div class="episode-header">
@@ -96,6 +110,7 @@ function createEpisodeCard(episode) {
                 <span class="episode-podcast">${episode.podcast_name}</span>
                 <span class="episode-date">${date}</span>
             </div>
+            ${errorDetails}
         </div>
     `;
 }
